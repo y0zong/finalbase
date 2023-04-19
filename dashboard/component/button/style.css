@@ -1,0 +1,177 @@
+@import url("../baseline.css");
+
+/* group */
+group {
+    display: inline-flex;
+}
+
+group.vertical {
+    flex-direction: column;
+}
+
+group:not(.vertical)>button:nth-of-type(1) {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+group:not(.vertical)>button:last-of-type {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}
+
+/* button */
+button {
+    --border-width: 1px;
+    --small-padding: 0 7px;
+    --normal-padding: 5px 10px;
+    --size: 14px;
+    border-top-left-radius: var(--border-size);
+    border-top-right-radius: var(--border-size);
+    border-bottom-left-radius: var(--border-size);
+    border-bottom-right-radius: var(--border-size);
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: var(--size);
+    position: relative;
+    color: var(--button-color);
+    background-color: var(--button-background-color) !important;
+}
+
+button.fill{
+    justify-content: center;
+    width: 100%;
+}
+
+button:is(:disabled, .loading) {
+    pointer-events: none;
+}
+
+button.loading>loading {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+button.loading>:not(loading) {
+    opacity: 0;
+}
+
+button.small {
+    padding: var(--small-padding);
+}
+
+button:not(.small) {
+    padding: var(--normal-padding);
+}
+
+button:not(.text) {
+    --border-opacity: 0.2;
+    box-shadow: inset 0 0 0 var(--border-width) rgba(var(--border-color), var(--border-opacity)),
+        0 1px 2px rgba(var(--black-rgb), 0.1);
+}
+
+button:not(.text, .outlined):is(.primary, .success, .warning, .danger) {
+    --button-color: var(--white);
+    --loading-color: var(--white);
+}
+
+button:not(.text, .outlined) {
+    --button-background-color: var(--action-background);
+    --loading-color: var(--text);
+}
+
+button.outlined {
+    --border-opacity: 1;
+}
+
+/* hover */
+button:is(.text, .outlined):hover {
+    --button-background-color-opacity: 0.25;
+}
+
+button:not(.text, .outlined):hover {
+    filter: saturate(1.5);
+    box-shadow: inset 0 0 0 var(--border-width) rgba(var(--border-color), var(--border-opacity)),
+        0 1px 2px rgba(var(--black-rgb), 0.2);
+}
+
+/* active */
+button:is(.text, .outlined):active {
+    --button-background-color-opacity: 0.35;
+}
+
+button:not(.text, .outlined):active {
+    filter: saturate(0.7);
+    box-shadow: inset 0 0 0 var(--border-width) rgba(var(--border-color), var(--border-opacity));
+}
+
+/* primary */
+button:is(.text, .outlined).primary {
+    --button-color: var(--primary);
+}
+
+button.outlined.primary {
+    --border-color: var(--primary-rgb);
+}
+
+button:not(.text, .outlined).primary {
+    --button-background-color: var(--primary);
+}
+
+button:is(.text, .outlined).primary:is(:hover, :active) {
+    --button-background-color: rgba(var(--primary-rgb), var(--button-background-color-opacity));
+}
+
+/* success */
+button:is(.text, .outlined).success {
+    --button-color: var(--success);
+}
+
+button.outlined.success {
+    --border-color: var(--success-rgb);
+}
+
+button:not(.text, .outlined).success {
+    --button-background-color: var(--success);
+}
+
+button:is(.text, .outlined).success:is(:hover, :active) {
+    --button-background-color: rgba(var(--success-rgb), var(--button-background-color-opacity));
+}
+
+/* warning */
+button:is(.text, .outlined).warning {
+    --button-color: var(--warning);
+}
+
+button.outlined.warning {
+    --border-color: var(--warning-rgb);
+}
+
+button:not(.text, .outlined).warning {
+    --button-background-color: var(--warning);
+}
+
+button:is(.text, .outlined).warning:is(:hover, :active) {
+    --button-background-color: rgba(var(--warning-rgb), var(--button-background-color-opacity));
+}
+
+/* danger */
+button:is(.text, .outlined).danger {
+    --button-color: var(--danger);
+}
+
+button.outlined.danger {
+    --border-color: var(--danger-rgb);
+}
+
+button:not(.text, .outlined).danger {
+    --button-background-color: var(--danger);
+}
+
+button:is(.text, .outlined).danger:is(:hover, :active) {
+    --button-background-color: rgba(var(--danger-rgb), var(--button-background-color-opacity));
+}

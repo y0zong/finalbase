@@ -1,0 +1,319 @@
+-- 
+-- Set schema auth
+--
+-- SET role auth;
+CREATE SCHEMA IF NOT EXISTS auth AUTHORIZATION auth;
+-- All following tables and functions should be owned by the auth role
+-- We will be able to return to the superuser role later with reset role;
+-- auth role to create auth schema
+-- CREATE SCHEMA IF NOT EXISTS auth AUTHORIZATION authenticated;
+GRANT usage on schema extensions to auth;
+SET role auth;
+CREATE TABLE auth.users (
+  "id" uuid NOT NULL UNIQUE DEFAULT extensions.uuid_generate_v4(),
+  "role" varchar(255) NULL DEFAULT 'webuser',
+  "meta" json NULL,
+  "email" varchar(255) NULL UNIQUE,
+  "password" varchar(255) NULL,
+  "confirmed_at" timestamptz NULL,
+  "confirmation_token" varchar(255) NULL,
+  "confirmation_sent_at" timestamptz NULL,
+  "recovery_token" varchar(255) NULL,
+  "recovery_sent_at" timestamptz NULL,
+  "email_change_token" varchar(255) NULL,
+  "email_change" varchar(255) NULL,
+  "email_change_sent_at" timestamptz NULL,
+  "last_sign_in_at" timestamptz NULL,
+  "created_at" timestamptz NULL,
+  "updated_at" timestamptz NULL,
+  CONSTRAINT users_pkey PRIMARY KEY (id)
+);
+comment on table auth.users is 'Auth: Stores user login data within a secure schema.';
+CREATE TABLE auth.sessions (
+  "token" text NOT NULL PRIMARY KEY DEFAULT encode(extensions.gen_random_bytes(32), 'base64'),
+  "user_id" uuid NOT NULL references auth.users,
+  "expires" timestamptz NOT NULL DEFAULT clock_timestamp() + '60min'::interval,
+  "created_at" timestamptz NOT NULL DEFAULT clock_timestamp(),
+  check (expires > created_at)
+);
+comment on table auth.sessions is 'User sessions, both active and expired ones.';
+CREATE view auth.active_sessions as
+SELECT token,
+  user_id,
+  created_at,
+  expires
+from auth.sessions
+where expires > clock_timestamp() WITH local check option;
+CREATE index on auth.sessions(expires);
+-- clean up expired sessions
+CREATE function auth.clean_sessions() returns void language sql security definer as $$
+DELETE from auth.sessions
+where expires < clock_timestamp() - '1day'::interval;
+$$;
+comment on function auth.clean_sessions is 'Cleans up sessions that have expired longer than a day ago.';
+CREATE or replace function auth.encrypt_pass() returns trigger as $$ begin if tg_op = 'INSERT'
+  or new.password <> old.password then new.password = extensions.crypt(new.password, extensions.gen_salt('bf'));
+end if;
+return new;
+end $$ language plpgsql;
+drop trigger if exists encrypt_pass on auth.users;
+CREATE trigger encrypt_pass before
+insert
+  or
+update on auth.users for each row execute procedure auth.encrypt_pass();
+-- login
+CREATE function auth.login(email text, passwd text) returns text language sql security definer as $$
+INSERT into auth.active_sessions(user_id)
+select id AS user_id
+from auth.users
+where email = login.email
+  and password = extensions.crypt(login.passwd, password)
+returning token;
+$$;
+comment on function auth.login is 'Returns the token for a newly created session or null on failure.';
+GRANT execute on function auth.login to anon;
+-- refresh session
+CREATE function auth.refresh_session(token text) returns void language sql security definer as $$
+update auth.sessions
+set expires = default
+where token = token
+  and expires > clock_timestamp() $$;
+comment on function auth.refresh_session is 'Extend the expiration time of the given session.';
+-- Only authenticated user need to use this function
+GRANT execute on function auth.refresh_session to webuser;
+-- logout
+CREATE function auth.logout(token text) returns void language sql security definer as $$
+update auth.sessions
+set expires = clock_timestamp()
+where token = logout.token $$;
+comment on function auth.logout is 'Expire the given session.';
+GRANT execute on function auth.logout to webuser;
+-- 
+-- help fn
+-- 
+create function auth.session_user_id(session_token text) returns uuid language sql security definer as $$
+select user_id
+from auth.active_sessions
+where token = session_token;
+$$;
+comment on function auth.session_user_id is 'Returns the id of the user currently authenticated, given a session token';
+-- The anonymous role will need to access this function in order to authenticate itself
+GRANT execute on function auth.session_user_id to anon;
+-- Authentication hook
+create function auth.authenticate() returns void language plpgsql as $$
+declare session_token text;
+session_user_id uuid;
+begin
+select current_setting('request.cookie.token', true) into session_token;
+select auth.session_user_id(session_token) into session_user_id;
+if session_user_id is not null then
+set local role to webuser;
+perform set_config('auth.user_id', session_user_id::text, true);
+else
+set local role to anon;
+perform set_config('auth.user_id', '', true);
+end if;
+end;
+$$;
+comment on function auth.authenticate is 'Sets the role and user_id based on the session token given as a cookie.';
+grant execute on function auth.authenticate to anon;
+grant usage on schema auth to anon,
+  webuser;
+reset role;
+-- 
+-- API
+-- 
+create function login(email text, passwd text) returns void language plpgsql as $$
+declare session_token text;
+headers json;
+begin
+select auth.login(email, passwd) into session_token;
+if session_token is null then raise insufficient_privilege using detail = 'invalid credentials';
+end if;
+headers := json_build_array(
+  json_build_object(
+    'Set-Cookie',
+    FORMAT(
+      'token=%s; Path=/; Max-Age=3600; HttpOnly',
+      session_token
+    )
+  )
+);
+perform set_config('response.headers', headers::text, true);
+end;
+$$;
+comment on function login is 'Creates a new session given valid credentials.';
+grant execute on function login to anon;
+create function register(email text, name text, passwd text, meta json) returns void security definer language plpgsql as $$ begin
+insert into auth.users(email, password, meta)
+values(register.email, register.passwd, register.meta);
+perform login(email, passwd);
+end;
+$$;
+comment on function register is 'Registers a new user and creates a new session for that account.';
+grant execute on function register to anon;
+create function refresh() returns void language plpgsql as $$
+declare session_token text;
+headers json;
+begin
+select current_setting('request.cookie.token', false) into strict session_token;
+perform auth.refresh_session(session_token);
+headers := json_build_array(
+  json_build_object(
+    'Set-Cookie',
+    FORMAT(
+      'token=%s; Path=/; Max-Age=3600; HttpOnly',
+      session_token
+    )
+  )
+);
+perform set_config('response.headers', headers::text, true);
+end;
+$$;
+comment on function refresh is 'Reset the expiration time of the given session.';
+grant execute on function refresh to webuser;
+create function logout() returns void language plpgsql as $$ begin perform auth.logout(
+  current_setting('request.cookie.token', true)
+);
+perform set_config(
+  'response.headers',
+  '[{"Set-Cookie": "token=; Path=/"}]',
+  true
+);
+end;
+$$;
+comment on function logout is 'Expires the given session and resets the session cookie.';
+grant execute on function logout to webuser;
+reset role;
+-- GRANT usage on schema auth to anon,
+--   authenticated;
+-- GRANT ALL privileges on ALL tables in schema auth to authenticated;
+-- SET search_path = "auth";
+-- -- 
+-- -- Gets the User ID from the request cookie
+-- -- 
+-- CREATE or replace function auth.uid() returns uuid as $$
+-- SELECT nullif(
+--     current_setting('request.jwt.claim.sub', true),
+--     ''
+--   )::uuid;
+-- $$ language sql stable;
+-- -- Gets the User ID from the request cookie
+-- CREATE or replace function auth.role() returns text as $$
+-- SELECT nullif(
+--     current_setting('request.jwt.claim.role', true),
+--     ''
+--   )::text;
+-- $$ language sql stable;
+-- -- Gets the User email
+-- CREATE or replace function auth.email() returns text as $$
+-- SELECT nullif(
+--     current_setting('request.jwt.claim.email', true),
+--     ''
+--   )::text;
+-- $$ language sql stable;
+-- User management
+-- CREATE or replace function auth.if_role_exists() returns trigger as $$ begin if not exists (
+--     SELECT 1
+--     from pg_roles as r
+--     where r.rolname = new.role
+--   ) then raise foreign_key_violation using message = 'unknown database role: ' || new.role;
+-- return null;
+-- end if;
+-- return new;
+-- end $$ language plpgsql;
+-- drop trigger if exists ensure_user_role_exists on auth.users;
+-- CREATE constraint trigger ensure_user_role_exists
+-- after
+-- insert
+--   or
+-- update on auth.users for each row execute procedure auth.if_role_exists();
+-- -- CREATE encrypted password
+-- CREATE or replace function auth.encrypt_pass() returns trigger as $$ begin if tg_op = 'INSERT'
+--   or new.password <> old.password then new.password = extensions.crypt(new.password, extensions.gen_salt('bf'));
+-- end if;
+-- return new;
+-- end $$ language plpgsql;
+-- drop trigger if exists encrypt_pass on auth.users;
+-- CREATE trigger encrypt_pass before
+-- insert
+--   or
+-- update on auth.users for each row execute procedure auth.encrypt_pass();
+-- -- return role if user and pass is verify
+-- CREATE or replace function auth.get_role(email text, pass text) returns name language plpgsql as $$ begin return (
+--     SELECT role
+--     from auth.users
+--     where users.email = get_role.email
+--       and users.password = extensions.crypt(get_role.pass, users.password)
+--   );
+-- end;
+-- $$;
+-- -- add type
+-- CREATE TYPE auth.jwt_token AS (token text);
+-- CREATE or replace function auth.get_jwt(email text, role text) returns auth.jwt_token as $$
+-- declare result auth.jwt_token;
+-- begin
+-- SELECT extensions.sign(
+--     row_to_json(r),
+--     'your-super-secret-jwt-token-with-at-least-32-characters-long'
+--   ) as token
+-- from (
+--     SELECT get_jwt.role as role,
+--       get_jwt.email as email,
+--       extract(
+--         epoch
+--         from now()
+--       )::integer + 60 * 60 as exp
+--   ) r into result;
+-- return result;
+-- end;
+-- $$ language plpgsql security definer;
+-- -- 
+-- -- login should be on your exposed schema
+-- -- 
+-- CREATE or replace function auth.login(email text, pass text) returns auth.jwt_token as $$
+-- declare _role name;
+-- _token auth.jwt_token;
+-- _headers json;
+-- begin -- check email and password
+-- SELECT auth.get_role(email, pass) into _role;
+-- if _role is null then raise invalid_password using message = 'invalid user or password';
+-- end if;
+-- SELECT auth.get_jwt(login.email, 'authenticated') into _token;
+-- _headers := json_build_array(
+--   json_build_object(
+--     'Set-Cookie',
+--     FORMAT(
+--       'token=%s; Path=/; Max-Age=3600; HttpOnly',
+--       _token
+--     )
+--   )
+-- );
+-- perform set_config('response.headers', _headers::text, true);
+-- return _token;
+-- end;
+-- $$ language plpgsql security definer;
+-- -- 
+-- -- register should be on your exposed schema
+-- -- 
+-- CREATE or replace function auth.register(email text, pass text, meta json) returns json as $$
+-- declare usr record;
+-- begin
+-- INSERT into auth.users as u (email, password, meta)
+-- values ($1, $2, $3)
+-- returning * into usr;
+-- return json_build_object(
+--   'me',
+--   json_build_object(
+--     'id',
+--     usr.id,
+--     'email',
+--     usr.email,
+--     'meta',
+--     usr.meta
+--   ),
+--   'token',
+--   auth.get_jwt(usr.email, 'authenticated')
+-- );
+-- end;
+-- $$ language plpgsql security definer;

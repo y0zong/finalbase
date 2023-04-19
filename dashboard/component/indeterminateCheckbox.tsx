@@ -1,0 +1,26 @@
+"use client";
+import React, { HTMLAttributes, HTMLProps } from "react";
+
+export default function IndeterminateCheckbox({
+	indeterminate,
+	className = "",
+	...rest
+}: { indeterminate?: boolean } & HTMLProps<HTMLInputElement>) {
+	// rome-ignore lint/style/noNonNullAssertion: <nullable>
+	const ref = React.useRef<HTMLInputElement>(null!);
+
+	React.useEffect(() => {
+		if (typeof indeterminate === "boolean") {
+			ref.current.indeterminate = !rest.checked && indeterminate;
+		}
+	}, [ref, indeterminate]);
+
+	return (
+		<input
+			type="checkbox"
+			ref={ref}
+			className={`${className} cursor-pointer`}
+			{...rest}
+		/>
+	);
+}

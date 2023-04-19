@@ -1,0 +1,100 @@
+# Usage
+#   Start:          docker compose up
+#   With helpers:   docker compose -f docker-compose.yml -f ./dev/docker-compose.dev.yml up
+#   Stop:           docker compose down
+#   Destroy:        docker compose -f docker-compose.yml -f ./dev/docker-compose.dev.yml down -v --remove-orphans
+
+version: "3.8"
+
+services:
+  dashboard:
+    container_name: finalbase-dashboard
+    build:
+      context: ./dashboard
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "node", "-e", "require('http').get('http://localhost:3000/api/profile', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})" ]
+      timeout: 5s
+      interval: 5s
+      retries: 3
+    ports:
+      - ${DASHBOARD_PORT}:8443/tcp
+    environment:
+      WECHAT_APP_ID: ${WECHAT_APP_ID}
+      WECHAT_APP_KEY: ${WECHAT_APP_KEY}
+      NEXT_PUBLIC_APP_NAME: 微迅纺织
+      DB_ENDPORT: http://rest:3000
+      NEXT_PUBLIC_API_ENDPORT: http://rest:${PGRST_PORT}
+
+  # kong:
+  #   container_name: finalbase-kong
+  #   image: kong:3.1.1
+  #   restart: unless-stopped
+  #   ports:
+  #     - ${KONG_HTTP_PORT}:8000/tcp
+  #     - ${KONG_HTTPS_PORT}:8443/tcp
+  #   environment:
+  #     KONG_DATABASE: postgres
+  #     KONG_PG_HOST: ${POSTGRES_HOST}
+  #     KONG_PG_USER: kong
+  #     KONG_PG_PASSWORD: ${POSTGRES_PASSWORD}
+  #     KONG_DECLARATIVE_CONFIG: /var/lib/kong/kong.yml
+  #     # https://github.com/supabase/cli/issues/14
+  #     KONG_DNS_ORDER: LAST,A,CNAME
+  #     KONG_PLUGINS: request-transformer,cors,key-auth,acl
+  #     KONG_NGINX_PROXY_PROXY_BUFFER_SIZE: 160k
+  #     KONG_NGINX_PROXY_PROXY_BUFFERS: 64 160k
+  #   volumes:
+  #     # https://github.com/supabase/supabase/issues/12661
+  #     - ./kong/kong.yml:/var/lib/kong/kong.yml:ro
+
+  rest:
+    container_name: finalbase-rest
+    image: postgrest/postgrest:v10.1.2
+    depends_on:
+      db: # Disable this if you are using an external Postgres database
+        condition: service_healthy
+    restart: unless-stopped
+    ports:
+      - ${PGRST_PORT}:3000/tcp
+    environment:
+      PGRST_DB_URI: postgres://authenticator:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
+      PGRST_DB_SCHEMAS: ${PGRST_DB_SCHEMAS}
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: ${JWT_SECRET}
+      PGRST_DB_USE_LEGACY_GUCS: "false"
+      # cookie base auth
+      PGRST_DB_PRE_REQUEST: "auth.check_session"
+
+  # Comment out everything below this point if you are using an external Postgres database
+  db:
+    container_name: finalbase-db
+    build:
+      context: ./postgres
+    # image: supabase/postgres:15.1.0.54-rc0
+    healthcheck:
+      test: pg_isready -U postgres -h localhost
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    command:
+      - postgres
+      - -c
+      - config_file=/etc/postgresql/postgresql.conf
+      - -c
+      - log_min_messages=fatal # prevents Realtime polling queries from appearing in logs
+    restart: unless-stopped
+    ports:
+      # Pass down internal port because it's set dynamically by other services
+      - ${POSTGRES_PORT}:${POSTGRES_PORT}
+    environment:
+      POSTGRES_HOST: /var/run/postgresql
+      PGPORT: ${POSTGRES_PORT}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      # PGDATA directory is persisted between restarts
+      - ./postgres/data:/var/lib/postgresql/data:Z

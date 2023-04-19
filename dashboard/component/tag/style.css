@@ -1,0 +1,46 @@
+@import url("../baseline.css");
+
+/* tag */
+tag {
+    align-items: center;
+    border-radius: var(--border-size);
+    display: inline-flex;
+    font-size: 12px;
+    line-height: 16px;
+    min-height: 20px;
+    padding: 2px 6px;
+    position: relative;
+}
+
+tag:not(.minimal) {
+    color: var(--text-reverse);
+    background-color: var(--tag-color);
+}
+
+tag.minimal {
+    background-color: var(--action-background);
+}
+
+tag>* {
+    outline: none;
+}
+
+tag:not(.parmary, .success, .warning, .danger) {
+    --tag-color: #5f6b7c;
+}
+
+tag.primary {
+    --tag-color: var(--primary)
+}
+
+tag.success {
+    --tag-color: var(--success)
+}
+
+tag.warning {
+    --tag-color: var(--warning)
+}
+
+tag.danger {
+    --tag-color: var(--danger)
+}

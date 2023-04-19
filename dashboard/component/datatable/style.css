@@ -1,0 +1,16 @@
+@import url("../baseline.css");
+
+/* table */
+.miuiu-table {
+    padding-left: 15px;
+    padding-right: 15px;
+}
+.miuiu-table>section {
+    gap: 20px;
+}
+.miuiu-table>section:last-of-type{
+    padding-bottom: 15px;
+}
+.miuiu-table .pagination-right{
+    display: flex;
+}

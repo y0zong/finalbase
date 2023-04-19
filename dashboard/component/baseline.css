@@ -1,0 +1,73 @@
+:root {
+    --text-rgb: 28, 33, 39;
+    --text-reverse-rgb: 255, 255, 255;
+    --default-rgb: 0, 0, 0;
+    --text: rgb(var(--text-rgb));
+    --text-reverse: rgb(var(--text-reverse-rgb));
+    --primary-rgb: 45, 114, 211;
+    --primary: rgb(var(--primary-rgb));
+    --success-rgb: 35, 133, 81;
+    --success: rgb(var(--success-rgb));
+    --warning-rgb: 251, 179, 96;
+    --warning: rgb(var(--warning-rgb));
+    --danger-rgb: 205, 66, 70;
+    --danger: rgb(var(--danger-rgb));
+    --black-rgb: 0, 0, 0;
+    --black: rgb(var(--black-rgb));
+    --white-rgb: 255, 255, 255;
+    --action-background-rgb: 237, 239, 242;
+    --action-background: rgba(var(--action-background-rgb), 0.15);
+    --white: rgb(var(--white-rgb));
+    --border-color: rgba(var(--default-rgb), 0.2);
+    --shadow-color: rgba(var(--black-rgb), 0.1);
+    --border-size: 4px;
+    --icon-color: #5f6b7c;
+    --input-background: #fff;
+}
+html.bp4-dark{
+    --default-rgb: 255, 255, 255;
+    --input-background: rgba(17,20,24,.3);
+}
+
+/* css components */
+.flex-x {
+    display: flex;
+    align-items: center;
+}
+
+.flex-y {
+    display: flex;
+    flex-direction: column;
+}
+
+.h-full {
+    height: 100%;
+}
+
+.grid-x {
+    display: grid;
+}
+
+.card {
+    padding: 20px;
+    border-radius: var(--border-size);
+    background-color: var(--foreground-color);
+    box-shadow: 0 0 0 1px rgba(17, 20, 24, .15);
+    transition: transform .2s cubic-bezier(.4, 1, .75, .9), box-shadow .2s cubic-bezier(.4, 1, .75, .9), transform .2s cubic-bezier(.4, 1, .75, .9), box-shadow .2s cubic-bezier(.4, 1, .75, .9);
+}
+
+.card.deep-1 {
+    box-shadow: 0 0 0 1px rgba(17, 20, 24, .1), 0 1px 1px rgba(17, 20, 24, .2);
+}
+
+.card.deep-2 {
+    box-shadow: 0 0 0 1px rgba(17, 20, 24, .1), 0 1px 1px rgba(17, 20, 24, .2), 0 2px 6px rgba(17, 20, 24, .2);
+}
+
+.card.deep-3 {
+    box-shadow: 0 0 0 1px rgba(17, 20, 24, .1), 0 2px 4px rgba(17, 20, 24, .2), 0 8px 24px rgba(17, 20, 24, .2);
+}
+
+.card.deep-4 {
+    box-shadow: 0 0 0 1px rgba(17, 20, 24, .1), 0 4px 8px rgba(17, 20, 24, .2), 0 18px 46px 6px rgba(17, 20, 24, .2);
+}

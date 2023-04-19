@@ -1,0 +1,56 @@
+@import url("../baseline.css");
+
+.miuiu-dialog {
+    position: fixed;
+    top: 0;
+    right: 0;
+    left: 0;
+    bottom: 0;
+}
+
+.miuiu-dialog>.backdrop {
+    background-color: rgba(17, 20, 24, .7);
+    width: 100%;
+    height: 100%;
+}
+
+.miuiu-dialog>.content {
+    position: absolute;
+    display: flex;
+    overflow: hidden;
+    align-items: stretch;
+    border-radius: var(--border-size);
+    flex-direction: column;
+    background-color: var(--background-color);
+    box-shadow: 0 0 0 1px rgba(17, 20, 24, .1), 0 2px 4px rgba(17, 20, 24, .2), 0 8px 24px rgba(17, 20, 24, .2);
+}
+
+.miuiu-dialog>.content.center {
+    left: 50%;
+    top: 50%;
+    max-height: calc(100% - 80px);
+    transform: translate(-50%, -50%);
+}
+
+.miuiu-dialog>.content>:is(section, footer) {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    z-index: 1;
+    background-color: var(--foreground-color);
+}
+
+.miuiu-dialog>.content>section {
+    padding: 5px 15px;
+    box-shadow: 0 1px 0 rgba(17, 20, 24, .15);
+}
+
+.miuiu-dialog>.content>footer {
+    padding: 15px;
+    justify-content: end;
+    box-shadow: 0 -1px 0 rgba(17, 20, 24, .15);
+}
+
+.miuiu-dialog>.content>div {
+    overflow: auto;
+}

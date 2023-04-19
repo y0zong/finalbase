@@ -1,0 +1,83 @@
+@import url("../baseline.css");
+
+/* group */
+group {
+    display: inline-flex;
+}
+
+group.vertical {
+    flex-direction: column;
+}
+
+group:not(.vertical)>button:nth-of-type(1) {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+group:not(.vertical)>button:last-of-type {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}
+
+/* input */
+label.miuiu-input {
+    display: flex;
+    align-items: center;
+    background: #fff;
+    border-top-left-radius: var(--border-size);
+    border-top-right-radius: var(--border-size);
+    border-bottom-left-radius: var(--border-size);
+    border-bottom-right-radius: var(--border-size);
+    padding-left: var(--border-size);
+    padding-right: var(--border-size);
+    background-color: var(--input-background);
+    box-shadow: 0 0 0 0 rgba(45, 114, 210, 0), 0 0 0 0 rgba(45, 114, 210, 0), inset 0 0 0 1px rgba(17, 20, 24, .2), inset 0 1px 1px rgba(17, 20, 24, .5);
+}
+
+label.miuiu-input>input {
+    appearance: none;
+    border: none;
+    background-color: transparent;
+    padding-left: var(--border-size);
+    padding-right: var(--border-size);
+    font-size: 14px;
+    outline: none;
+    width: 100%;
+}
+
+label.miuiu-input>input:not(.small) {
+    height: 30px;
+    line-height: 30px;
+}
+
+label.miuiu-input>input.small {
+    height: 24px;
+    line-height: 24px;
+}
+
+/* fields */
+section.miuiu-fields {
+    display: flex;
+}
+
+section.miuiu-fields:not(.inline) {
+    flex-direction: column;
+}
+
+tr.miuiu-fields>td:first-of-type {
+    vertical-align: top;
+}
+
+/* form */
+form.miuiu-form:not(.inline)>section {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+form.miuiu-form.inline>section {
+    display: table;
+    border-spacing: 20px;
+    margin-left: -20px;
+    margin-right: -20px;
+}
